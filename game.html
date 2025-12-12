@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>RPG Board Game (integrado)</title>
+  <style>
+    body {
+      background: #1d1f27;
+      color: white;
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, Helvetica, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(10, 48px);
+      grid-template-rows: repeat(10, 48px);
+      gap: 2px;
+      background: #333;
+      padding: 5px;
+      border-radius: 10px;
+    }
+
+    .cell {
+      width: 48px;
+      height: 48px;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 4px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.08s;
+      box-sizing: border-box;
+    }
+
+    .entity {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+
+    #turnInfo { margin: 15px; font-size: 18px; }
+
+    #endTurnBtn {
+      position: fixed;
+      bottom: 25px;
+      right: 25px;
+      background: #008cff;
+      color: white;
+      padding: 12px 18px;
+      font-size: 18px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 0 10px #000;
+    }
+
+    .move-option {
+      background: linear-gradient(0deg, rgba(0,85,255,0.18), rgba(0,85,255,0.18));
+      outline: 2px solid rgba(0,120,255,0.25);
+    }
+
+    .hp-bubble {
+      position: absolute;
+      bottom: 2px;
+      left: 2px;
+      font-size: 11px;
+      background: rgba(0,0,0,0.6);
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+
+    #consoleBox {
+      margin-top: 20px;
+      width: 500px;
+      height: 180px;
+      background: #111;
+      border: 2px solid #444;
+      border-radius: 10px;
+      padding: 10px;
+      overflow-y: auto;
+      font-family: Consolas, monospace;
+      font-size: 14px;
+      color: #00eaff;
+      box-shadow: 0 0 10px #000;
+    }
+    .console-line {
+      margin-bottom: 4px;
+  }
+
+  </style>
+</head>
+<body>
+
+  <h1>Tabuleiro do RPG</h1>
+  <div id="turnInfo">Carregando...</div>
+  <div id="board"></div>
+  <div id="consoleBox"></div>
+  <button id="endTurnBtn">End Turn</button>
+
+  <script>
+
+  function logMessage(text) {
+    const box = document.getElementById("consoleBox");
+    const line = document.createElement("div");
+    line.className = "console-line";
+    line.textContent = text;
+    box.appendChild(line);
+
+    // scroll automático para a última mensagem
+    box.scrollTop = box.scrollHeight;
+  }
+
+  // ----------------------------
+  // In-page "player.js" + "monster.js" (dados e factories)
+  // ----------------------------
+  const PlayerClasses = {
+    warrior: {
+      sprite: "warrior.png",
+      movementRange: 3,
+      attributes: { hp: 20, armor: 16, damageMin: 3, damageMax: 6 }
+    },
+    rogue: {
+      sprite: "rogue.png",
+      movementRange: 4,
+      attributes: { hp: 14, armor: 14, damageMin: 2, damageMax: 4 }
+    },
+    mage: {
+      sprite: "mage.png",
+      movementRange: 3,
+      attributes: { hp: 12, armor: 12, damageMin: 4, damageMax: 8 }
+    }
+  };
+
+  function createPlayer(type) {
+    const data = PlayerClasses[type] || PlayerClasses.warrior;
+    return {
+      type,
+      sprite: data.sprite,
+      movementRange: data.movementRange,
+      hp: data.attributes.hp,
+      armor: data.attributes.armor,
+      damageMin: data.attributes.damageMin,
+      damageMax: data.attributes.damageMax,
+      getDamage() {
+        return Math.floor(Math.random() * (this.damageMax - this.damageMin + 1)) + this.damageMin;
+      }
+    };
+  }
+
+  const MonsterClasses = {
+    goblin: {
+      sprite: "goblin.png",
+      movementRange: 2,
+      attributes: { hp: 6, armor: 8, damageMin: 1, damageMax: 3 }
+    },
+    orc: {
+      sprite: "orc.png",
+      movementRange: 3,
+      attributes: { hp: 12, armor: 12, damageMin: 2, damageMax: 5 }
+    },
+    troll: {
+      sprite: "troll.png",
+      movementRange: 2,
+      attributes: { hp: 20, armor: 14, damageMin: 3, damageMax: 8 }
+    }
+  };
+
+  function createMonster(type) {
+    const data = MonsterClasses[type];
+    return {
+      type,
+      sprite: data.sprite,
+      movementRange: data.movementRange,
+      hp: data.attributes.hp,
+      armor: data.attributes.armor,
+      damageMin: data.attributes.damageMin,
+      damageMax: data.attributes.damageMax,
+      getDamage() {
+        return Math.floor(Math.random() * (this.damageMax - this.damageMin + 1)) + this.damageMin;
+      }
+    };
+  }
+
+  // ----------------------------
+  // Game state
+  // ----------------------------
+  const playerType = localStorage.getItem("playerCharacter") || "warrior";
+  const hero = createPlayer(playerType);
+  hero.movementLeft = hero.movementRange;
+  hero.canAttack = true;
+
+  const boardSize = 10;
+  const board = document.getElementById("board");
+  const turnInfo = document.getElementById("turnInfo");
+
+  const grid = Array.from({ length: boardSize }, () => Array.from({ length: boardSize }, () => null));
+
+  // ----------------------------
+  // Utilities / board
+  // ----------------------------
+  function createBoard() {
+    board.innerHTML = "";
+    for (let y = 0; y < boardSize; y++) {
+      for (let x = 0; x < boardSize; x++) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.dataset.x = x;
+        cell.dataset.y = y;
+        cell.addEventListener("click", () => onCellClicked(x, y));
+        board.appendChild(cell);
+      }
+    }
+  }
+  createBoard();
+
+  function getCell(x, y) {
+    return document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+  }
+
+  function placeEntity(entity, x, y) {
+    const cell = getCell(x, y);
+    if (!cell) return;
+    // create img
+    const img = document.createElement("img");
+    img.className = "entity";
+    img.src = "assets/sprites/" + entity.sprite;
+    img.alt = entity.type;
+    // hp bubble
+    const hpB = document.createElement("div");
+    hpB.className = "hp-bubble";
+    hpB.textContent = entity.hp;
+    cell.appendChild(img);
+    cell.appendChild(hpB);
+    grid[y][x] = entity;
+    entity.x = x; entity.y = y;
+  }
+
+  function clearCell(x, y) {
+    const cell = getCell(x, y);
+    if (!cell) return;
+    cell.innerHTML = "";
+    grid[y][x] = null;
+  }
+
+  function getRandomFreeCell() {
+    while (true) {
+      const x = Math.floor(Math.random() * boardSize);
+      const y = Math.floor(Math.random() * boardSize);
+      if (grid[y][x] === null) return { x, y };
+    }
+  }
+
+  // ----------------------------
+  // Place hero + monsters
+  // ----------------------------
+  const heroPos = getRandomFreeCell();
+  placeEntity(hero, heroPos.x, heroPos.y);
+
+  const monsterTypes = ["goblin","orc","troll"];
+  const monsters = [];
+  for (let i = 0; i < 3; i++) {
+    const t = monsterTypes[Math.floor(Math.random()*monsterTypes.length)];
+    const m = createMonster(t);
+    m.movementLeft = m.movementRange;
+    const pos = getRandomFreeCell();
+    monsters.push(m);
+    placeEntity(m, pos.x, pos.y);
+  }
+
+  // ----------------------------
+  // Helpers: adjacency, delay
+  // ----------------------------
+  function isAdjacent(x1,y1,x2,y2) {
+    return (Math.abs(x1-x2) === 1 && y1 === y2) || (Math.abs(y1-y2) === 1 && x1 === x2);
+  }
+
+  function delay(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
+
+  // ----------------------------
+  // Highlight movement (only immediate adjacents)
+  // ----------------------------
+  let highlightedCells = [];
+  function clearHighlights(){
+    highlightedCells.forEach(c => c.classList.remove("move-option"));
+    highlightedCells = [];
+  }
+
+  function highlightMovementRange(entity){
+    clearHighlights();
+    if (!entity || entity.movementLeft <= 0) return;
+    const adj = [
+      {x: entity.x+1, y: entity.y},
+      {x: entity.x-1, y: entity.y},
+      {x: entity.x, y: entity.y+1},
+      {x: entity.x, y: entity.y-1}
+    ];
+    for (const p of adj){
+      if (p.x >=0 && p.x < boardSize && p.y >=0 && p.y < boardSize && grid[p.y][p.x] === null){
+        const cell = getCell(p.x, p.y);
+        if (cell){ cell.classList.add("move-option"); highlightedCells.push(cell); }
+      }
+    }
+  }
+
+  // ----------------------------
+  // Turn system
+  // ----------------------------
+  let turn = "player";
+  function updateTurnInfo(){
+    if (turn === "player"){
+      turnInfo.textContent = `Turno do Player — Movimentos restantes: ${hero.movementLeft} — Ataque disponível: ${hero.canAttack ? "Sim" : "Não"}`;
+    } else {
+      turnInfo.textContent = "Turno dos Monstros";
+    }
+  }
+
+  function setTurn(newTurn){
+    turn = newTurn;
+    if (turn === "player"){
+      hero.movementLeft = hero.movementRange;
+      hero.canAttack = true;
+      highlightMovementRange(hero);
+      updateTurnInfo();
+    } else {
+      clearHighlights();
+      updateTurnInfo();
+      // start monster actions shortly
+      setTimeout(() => { monsterTurn(); }, 300);
+    }
+  }
+
+  // initialize
+  setTurn("player");
+
+  // ----------------------------
+  // Combat (d20)
+  // ----------------------------
+  function rollDice(sides){ return Math.floor(Math.random()*sides)+1; }
+
+  function attack(attacker, target){
+    const d20 = rollDice(20);
+
+    logMessage(`${attacker.type} attacks ${target.type}: ${d20} vs AC ${target.armor}`);
+
+    if (d20 >= target.armor){
+      logMessage(`→ HIT!`);
+
+      const damage = Math.floor(Math.random()*(attacker.damageMax - attacker.damageMin + 1)) + attacker.damageMin;
+
+      target.hp -= damage;
+
+      logMessage(`${attacker.type} damages ${target.type}: ${damage}`);
+
+      // atualizar HP visual
+      const cell = getCell(target.x, target.y);
+      if (cell){
+        const bubble = cell.querySelector(".hp-bubble");
+        if (bubble) bubble.textContent = Math.max(0, target.hp);
+      }
+
+      // morte
+      if (target.hp <= 0){
+        logMessage(`${target.type} has been slain!`);
+        clearCell(target.x, target.y);
+
+        const idx = monsters.indexOf(target);
+        if (idx !== -1) monsters.splice(idx, 1);
+      }
+
+    } else {
+      logMessage(`→ MISS!`);
+    }
+  }
+
+
+  // ----------------------------
+  // Player click handler: attack or move 1 tile (adjacent only)
+  // ----------------------------
+  function onCellClicked(x,y){
+    if (turn !== "player") return;
+
+    const entity = grid[y][x];
+
+    // Attack if adjacent monster clicked
+    if (entity && monsters.includes(entity) && isAdjacent(hero.x, hero.y, x, y)){
+      if (!hero.canAttack){ alert("Você já atacou neste turno."); return; }
+      if (!confirm("Deseja atacar este monstro?")) return;
+      attack(hero, entity);
+      hero.canAttack = false;
+      updateTurnInfo();
+      return;
+    }
+
+    // Move only to highlighted adjacent tile
+    const cell = getCell(x,y);
+    if (!cell || !cell.classList.contains("move-option")) return;
+
+    // move 1 tile
+    clearCell(hero.x, hero.y);
+    placeEntity(hero, x, y);
+    hero.movementLeft--;
+    if (hero.movementLeft > 0) highlightMovementRange(hero);
+    else clearHighlights();
+    updateTurnInfo();
+  }
+
+  // ----------------------------
+  // Monster movement helpers (tile-by-tile)
+  // ----------------------------
+  function canMonsterStepTo(x,y){
+    // cannot step onto hero's tile
+    if (x === hero.x && y === hero.y) return false;
+    // must be inside board and empty
+    if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return false;
+    if (grid[y][x] !== null) return false;
+    return true;
+  }
+
+  function stepTowards(monster, targetX, targetY){
+    let dx = targetX - monster.x;
+    let dy = targetY - monster.y;
+
+    if (Math.abs(dx) > Math.abs(dy)){
+      dx = dx > 0 ? 1 : -1; dy = 0;
+    } else if (Math.abs(dy) > 0){
+      dy = dy > 0 ? 1 : -1; dx = 0;
+    } else { dx = 0; dy = 0; }
+
+    const newX = monster.x + dx;
+    const newY = monster.y + dy;
+    if (!canMonsterStepTo(newX, newY)) return false;
+
+    clearCell(monster.x, monster.y);
+    placeEntity(monster, newX, newY);
+    return true;
+  }
+
+  async function monsterMove(monster){
+    while (monster.movementLeft > 0){
+      // stop if adjacent to hero (will attack)
+      if (isAdjacent(monster.x, monster.y, hero.x, hero.y)) break;
+
+      const moved = stepTowards(monster, hero.x, hero.y);
+      if (!moved) break;
+      monster.movementLeft--;
+      await delay(220); // animation per tile
+    }
+  }
+
+  // ----------------------------
+  // Monster turn (sequential, animated)
+  // ----------------------------
+  async function monsterTurn(){
+    for (const monster of monsters.slice()){ // slice to avoid mutation issues
+      monster.movementLeft = monster.movementRange;
+
+      // if already adjacent, attack immediately
+      if (isAdjacent(monster.x, monster.y, hero.x, hero.y)){
+        attack(monster, hero);
+        if (hero.hp <= 0){ alert("O herói morreu! Game Over."); return; }
+        continue;
+      }
+
+      // move tile by tile toward hero
+      await monsterMove(monster);
+
+      // after moving, if adjacent, attack
+      if (isAdjacent(monster.x, monster.y, hero.x, hero.y)){
+        attack(monster, hero);
+        if (hero.hp <= 0){ alert("O herói morreu! Game Over."); return; }
+      }
+    }
+
+    // after all monsters acted, back to player
+    setTurn("player");
+  }
+
+  // ----------------------------
+  // End Turn button
+  // ----------------------------
+  document.getElementById("endTurnBtn").addEventListener("click", () => {
+    if (turn !== "player") return;
+    clearHighlights();
+    setTurn("monsters");
+  });
+
+  // ----------------------------
+  // Utility: refresh all HP bubbles (in case of manual changes)
+  // ----------------------------
+  function refreshAllHPBubbles(){
+    // for hero
+    const hcell = getCell(hero.x, hero.y);
+    if (hcell){
+      const b = hcell.querySelector(".hp-bubble");
+      if (b) b.textContent = Math.max(0, hero.hp);
+    }
+    // for monsters
+    for (const m of monsters){
+      const c = getCell(m.x, m.y);
+      if (c){
+        const b = c.querySelector(".hp-bubble");
+        if (b) b.textContent = Math.max(0, m.hp);
+      }
+    }
+  }
+
+  // initial highlight & info
+  highlightMovementRange(hero);
+  updateTurnInfo();
+
+  // debug helper in console
+  window._GAME = { hero, monsters, grid, setTurn };
+
+  </script>
+</body>
+</html>
