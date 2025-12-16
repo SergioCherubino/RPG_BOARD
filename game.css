@@ -94,3 +94,49 @@ body {
 .console-line {
   margin-bottom: 4px;
 }
+
+#gameWrapper {
+  display: flex;
+  gap: 16px;
+}
+
+#hud {
+  width: 220px;
+  background: #111;
+  border: 2px solid #333;
+  padding: 12px;
+  font-family: Arial, sans-serif;
+}
+
+#hud h2, #hud h3 {
+  margin: 6px 0;
+  border-bottom: 1px solid #333;
+  padding-bottom: 4px;
+}
+
+.hud-section {
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.equipment {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.slot {
+  height: 48px;
+  border: 2px dashed #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1c1c1c;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.slot.filled {
+  border-style: solid;
+  background: #2a2a2a;
+}

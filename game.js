@@ -7,6 +7,13 @@ function logMessage(text) {
   box.scrollTop = box.scrollHeight;
 }
 
+const items = {
+  sword: { name: "Sword", damageMin: 1, damageMax: 2 },
+  armor: { name: "Armor", armor: 2 },
+  shield:{ name: "Shield", armor: 1 }
+};
+
+
 // ============================
 // Player / Monster factories
 // ============================
@@ -116,9 +123,8 @@ function placeTableObject() {
 
   while (!placed) {
     const start = getRandomFreeCell();
-    const horizontal = Math.random() < 0.5;
 
-    const cells = getTableCellsRect(start.x, start.y, horizontal);
+    const cells = getTableCellsRect(start.x, start.y, false);
 
     // valida espaço
     const valid = cells.every(c =>
@@ -140,8 +146,8 @@ function placeTableObject() {
     img.src = "Assets/objects/table.png";
     img.className = "entity";
 
-    img.style.width  = horizontal ? `${TILE_SIZE * 3}px` : `${TILE_SIZE * 2}px`;
-    img.style.height = horizontal ? `${TILE_SIZE * 2}px` : `${TILE_SIZE * 3}px`;
+    img.style.width  = `${TILE_SIZE * 2}px`;
+    img.style.height = `${TILE_SIZE * 3}px`;
 
     img.style.position = "absolute";
     img.style.left = "0";
@@ -170,17 +176,35 @@ const hero = createPlayer(localStorage.getItem("playerCharacter") || "warrior");
 hero.movementLeft = hero.movementRange;
 hero.canAttack = true;
 
+const TILE_IMAGES = [
+  "Assets/objects/tiles/tile1.png",
+  "Assets/objects/tiles/tile2.png",
+  "Assets/objects/tiles/tile3.png",
+  "Assets/objects/tiles/tile4.png"
+];
+
 // ============================
 // Board helpers
 // ============================
 function createBoard(){
   board.innerHTML = "";
-  for(let y=0;y<boardSize;y++){
-    for(let x=0;x<boardSize;x++){
-      const c=document.createElement("div");
-      c.className="cell";
-      c.dataset.x=x; c.dataset.y=y;
-      c.onclick=()=>onCellClicked(x,y);
+
+  for(let y = 0; y < boardSize; y++){
+    for(let x = 0; x < boardSize; x++){
+      const c = document.createElement("div");
+      c.className = "cell";
+      c.dataset.x = x;
+      c.dataset.y = y;
+
+      // 🎲 tile aleatório
+      const tileImg =
+        TILE_IMAGES[Math.floor(Math.random() * TILE_IMAGES.length)];
+
+      c.style.backgroundImage = `url(${tileImg})`;
+      c.style.backgroundSize = "cover";
+      c.style.backgroundPosition = "center";
+
+      c.onclick = () => onCellClicked(x, y);
       board.appendChild(c);
     }
   }
@@ -245,6 +269,7 @@ function startLevel(){
   logMessage(`🏁 Iniciando fase ${currentLevel}`);
   clearBoard();
   createBoard();
+  updateHUD();
 
   placeTableObject(); // 🪑 OBJETO FIXO
 
@@ -317,6 +342,7 @@ function attack(attacker,target){
       }
     }
   } else logMessage("→ MISS!");
+  updateHUD();
 }
 
 // ============================
@@ -452,6 +478,31 @@ if (endTurnBtn) {
   });
 }
 
+function updateHUD() {
+  document.getElementById("hudClass").textContent = hero.type;
+  document.getElementById("hudHP").textContent = hero.hp;
+  document.getElementById("hudArmor").textContent = hero.armor;
+  document.getElementById("hudDamage").textContent =
+    `${hero.damageMin} - ${hero.damageMax}`;
+}
+
+function equipItem(slot, item) {
+  if (slot === "weapon") {
+    hero.damageMin += item.damageMin;
+    hero.damageMax += item.damageMax;
+  }
+  if (slot === "armor" || slot === "shield") {
+    hero.armor += item.armor;
+  }
+
+  const slotDiv = document.querySelector(`.slot[data-slot="${slot}"]`);
+  slotDiv.textContent = item.name;
+  slotDiv.classList.add("filled");
+
+  updateHUD();
+}
+
+
 // ============================
 // Init
 // ============================
@@ -459,4 +510,6 @@ createBoard();
 startLevel();
 
 window._GAME={hero,monsters,grid};
+
+
 

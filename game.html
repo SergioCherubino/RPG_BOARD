@@ -9,7 +9,28 @@
 
   <h1>Tabuleiro do RPG</h1>
   <div id="turnInfo">Carregando...</div>
-  <div id="board"></div>
+  <div id="gameWrapper">
+    <div id="hud">
+      <h2>Hero</h2>
+
+      <div class="hud-section">
+        <strong>Class:</strong> <span id="hudClass"></span><br>
+        <strong>HP:</strong> <span id="hudHP"></span><br>
+        <strong>Armor:</strong> <span id="hudArmor"></span><br>
+        <strong>Damage:</strong> <span id="hudDamage"></span>
+      </div>
+
+      <h3>Equipamentos</h3>
+
+      <div class="equipment">
+        <div class="slot" data-slot="weapon">Weapon</div>
+        <div class="slot" data-slot="armor">Armor</div>
+        <div class="slot" data-slot="shield">Shield</div>
+      </div>
+    </div>
+    <div id="board"></div>
+  </div>
+
   <div id="consoleBox"></div>
   <button id="endTurnBtn">End Turn</button>
 
