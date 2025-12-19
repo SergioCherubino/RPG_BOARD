@@ -1,39 +1,116 @@
 const exportBtn = document.getElementById("exportBtn");
+const backBtn = document.getElementById("backBtn");
 
 const BOARD_SIZE = 100;
 const TILE_SIZE = 48;
 
 const board = document.getElementById("board");
 const wallBtn = document.getElementById("wallBtn");
-
-let selectedTile = null;
-let wallMode = false;
-let doorMode = false;
-let selectedColor = "normal";
-
 const doorBtn = document.getElementById("doorBtn");
 
-/* === TILE DEFINITIONS === */
+let selectedTile = null;
+let selectedColor = "normal";
+let selectedObject = null;
+let wallMode = false;
+let doorMode = false;
+
+/* =========================
+   TILE DEFINITIONS
+========================= */
 const tiles = {
   floor: {
-    normal: [
-      "Assets/objects/tiles/tile1.png",
-      "Assets/objects/tiles/tile2.png",
-      "Assets/objects/tiles/tile3.png",
-      "Assets/objects/tiles/tile4.png"
+    gray: [
+      "Assets/objects/tiles/gray/tile1.png",
+      "Assets/objects/tiles/gray/tile2.png",
+      "Assets/objects/tiles/gray/tile3.png",
+      "Assets/objects/tiles/gray/tile4.png"
     ],
     red: [
-      "Assets/objects/tiles_red/tile1.png",
-      "Assets/objects/tiles_red/tile2.png",
-      "Assets/objects/tiles_red/tile3.png",
-      "Assets/objects/tiles_red/tile4.png"
+      "Assets/objects/tiles/red/tile1.png",
+      "Assets/objects/tiles/red/tile2.png",
+      "Assets/objects/tiles/red/tile3.png",
+      "Assets/objects/tiles/red/tile4.png"
     ],
     green: [
-      "Assets/objects/tiles_green/tile1.png",
-      "Assets/objects/tiles_green/tile2.png",
-      "Assets/objects/tiles_green/tile3.png",
-      "Assets/objects/tiles_green/tile4.png"
+      "Assets/objects/tiles/green/tile1.png",
+      "Assets/objects/tiles/green/tile2.png",
+      "Assets/objects/tiles/green/tile3.png",
+      "Assets/objects/tiles/green/tile4.png"
+    ],
+    blue: [
+      "Assets/objects/tiles/blue/tile1.png",
+      "Assets/objects/tiles/blue/tile2.png",
+      "Assets/objects/tiles/blue/tile3.png",
+      "Assets/objects/tiles/blue/tile4.png"
+    ],
+    black: [
+      "Assets/objects/tiles/black/tile1.png",
+      "Assets/objects/tiles/black/tile2.png",
+      "Assets/objects/tiles/black/tile3.png",
+      "Assets/objects/tiles/black/tile4.png"
+    ],
+    yellow: [
+      "Assets/objects/tiles/yellow/tile1.png",
+      "Assets/objects/tiles/yellow/tile2.png",
+      "Assets/objects/tiles/yellow/tile3.png",
+      "Assets/objects/tiles/yellow/tile4.png"
     ]
+  }
+};
+
+/* =========================
+   OBJECTS DEFINITIONS
+========================= */
+const objects = {
+  chest: {
+    w: 1,
+    h: 1,
+    img: "Assets/objects/chest.png"
+  },
+  table: {
+    w: 3,
+    h: 2,
+    img: "Assets/objects/table.png"
+  },
+  altar: {
+    w: 2,
+    h: 2,
+    img: "Assets/objects/altar.png"
+  },
+  bookcase: {
+    w: 3,
+    h: 1,
+    img: "Assets/objects/bookcase.png"
+  },
+  campfire: {
+    w: 2,
+    h: 2,
+    img: "Assets/objects/campfire.png"
+  },
+  sorcerer_table: {
+    w: 3,
+    h: 2,
+    img: "Assets/objects/sorcerer_table.png"
+  },
+  throne: {
+    w: 1,
+    h: 1,
+    img: "Assets/objects/throne.png"
+  },
+  weapon_rack: {
+    w: 3,
+    h: 1,
+    img: "Assets/objects/weapon_rack.png"
+  },
+  tortue_table: {
+    w: 3,
+    h: 2,
+    img: "Assets/objects/torture_table.png"
+  },
+  hole: {
+    w: 1,
+    h: 1,
+    img: "Assets/objects/hole.png"
   }
 };
 
@@ -48,8 +125,11 @@ for (let y = 0; y < BOARD_SIZE; y++) {
 
     grid[y][x] = {
       tile: null,
+      color: null,
       img: null,
-      walls: { top:"none", right:"none", bottom:"none", left:"none" }
+      object: null,
+      objectRoot: null,  // { x, y } do tile raiz
+      walls: { top: "none", right: "none", bottom: "none", left: "none" }
     };
 
     const cell = document.createElement("div");
@@ -61,25 +141,11 @@ for (let y = 0; y < BOARD_SIZE; y++) {
 
     cell.addEventListener("drop", e => {
       e.preventDefault();
-      if (wallMode || !selectedTile) return;
-      setTile(x, y, selectedTile);
+      handleCellAction(x, y, e);
     });
 
     cell.addEventListener("click", e => {
-
-      // MOBILE / CLICK MODE: colocar tile
-      if (!wallMode && !doorMode) {
-        if (!selectedTile) return;
-        setTile(x, y, selectedTile);
-        return;
-      }
-
-      // WALL / DOOR MODE
-      const edge = getEdgeFromMouse(cell, e);
-      if (!edge) return;
-
-      if (wallMode) toggleBarrier(x, y, edge, "wall");
-      if (doorMode) toggleBarrier(x, y, edge, "door");
+      handleCellAction(x, y, e);
     });
 
     board.appendChild(cell);
@@ -87,56 +153,167 @@ for (let y = 0; y < BOARD_SIZE; y++) {
 }
 
 /* =========================
-   PALETTE
+   CELL ACTION HANDLER
+========================= */
+function handleCellAction(x, y, event) {
+
+  // WALL / DOOR MODE (prioridade máxima)
+  if (wallMode || doorMode) {
+    const edge = getEdgeFromMouse(getCell(x, y), event);
+    if (!edge) return;
+
+    if (wallMode) toggleBarrier(x, y, edge, "wall");
+    if (doorMode) toggleBarrier(x, y, edge, "door");
+    return;
+  }
+
+  // OBJETO
+  if (selectedObject) {
+    setObject(x, y, selectedObject);
+    return;
+  }
+
+  // TILE
+  if (selectedTile) {
+    setTile(x, y, selectedTile);
+  }
+}
+
+/* =========================
+   PALETTE – TILES
 ========================= */
 document.querySelectorAll(".palette img").forEach(img => {
-
-  // Drag (desktop)
-  img.addEventListener("dragstart", () => {
-    selectedTile = img.dataset.tile;
-    selectedColor = img.dataset.color;
-    highlightSelectedPalette(img);
-  });
-
-  // Click / Touch (mobile)
-  img.addEventListener("click", () => {
-    selectedTile = img.dataset.tile;
-    selectedColor = img.dataset.color;
-    highlightSelectedPalette(img);
-  });
+  img.addEventListener("dragstart", () => selectTile(img));
+  img.addEventListener("click", () => selectTile(img));
 });
 
+function selectTile(img) {
+  selectedTile = img.dataset.tile;
+  selectedColor = img.dataset.color;
+  selectedObject = null;
+
+  document.querySelectorAll(".object-item")
+    .forEach(o => o.classList.remove("selected-object"));
+
+  highlightSelectedPalette(img);
+}
+
 function highlightSelectedPalette(selectedImg) {
-  document.querySelectorAll(".palette img").forEach(img => {
-    img.classList.remove("selected-palette");
-  });
+  document.querySelectorAll(".palette img")
+    .forEach(img => img.classList.remove("selected-palette"));
 
   selectedImg.classList.add("selected-palette");
 }
 
 /* =========================
-   TILE LOGIC
+   TILE LOGIC (TOGGLE)
 ========================= */
 function setTile(x, y, type) {
+  const cellData = grid[y][x];
+  const cell = getCell(x, y);
+
+  // TOGGLE: mesmo tile + mesma cor → remove
+  if (cellData.tile === type && cellData.color === selectedColor) {
+    cellData.tile = null;
+    cellData.color = null;
+    cellData.img = null;
+
+    cell.style.backgroundImage = "";
+    cell.className = "cell";
+    renderWalls(x, y);
+    return;
+  }
+
   const colorSet = tiles[type][selectedColor] || tiles[type].normal;
   const img = colorSet[Math.floor(Math.random() * colorSet.length)];
 
-  grid[y][x] = {
-    ...grid[y][x],
-    tile: type,
-    color: selectedColor,
-    img
-  };
+  cellData.tile = type;
+  cellData.color = selectedColor;
+  cellData.img = img;
 
-  const cell = getCell(x, y);
   cell.style.backgroundImage = `url(${img})`;
   cell.className = `cell floor-${selectedColor}`;
-
   renderWalls(x, y);
 }
 
 /* =========================
-   WALL LOGIC
+   OBJECT LOGIC (TOGGLE)
+========================= */
+function setObject(x, y, objectType) {
+  const cellData = grid[y][x];
+
+  // 🔁 SE já existe objeto nesse tile
+  if (cellData.object) {
+    const root = cellData.objectRoot;
+
+    // 👉 Se for o MESMO objeto selecionado → REMOVE
+    if (cellData.object === objectType && root) {
+      removeObject(root.x, root.y);
+      return;
+    }
+
+    // 👉 Outro objeto → não faz nada
+    return;
+  }
+
+  const def = objects[objectType];
+  if (!def) return;
+
+  // ❌ Limite do board
+  if (x + def.w > BOARD_SIZE || y + def.h > BOARD_SIZE) return;
+
+  // ❌ Área ocupada
+  for (let yy = y; yy < y + def.h; yy++) {
+    for (let xx = x; xx < x + def.w; xx++) {
+      if (grid[yy][xx].object) return;
+    }
+  }
+
+  // ✅ Marca tiles ocupados
+  for (let yy = y; yy < y + def.h; yy++) {
+    for (let xx = x; xx < x + def.w; xx++) {
+      grid[yy][xx].object = objectType;
+      grid[yy][xx].objectRoot = { x, y };
+    }
+  }
+
+  // ✅ Renderiza imagem (UMA vez)
+  const cell = getCell(x, y);
+  const img = document.createElement("img");
+
+  img.src = def.img;
+  img.className = "map-object";
+  img.style.width = `${def.w * TILE_SIZE}px`;
+  img.style.height = `${def.h * TILE_SIZE}px`;
+  img.style.position = "absolute";
+  img.style.left = "0";
+  img.style.top = "0";
+  img.style.pointerEvents = "none";
+
+  cell.appendChild(img);
+}
+
+
+function removeObject(x, y) {
+  const root = grid[y][x].objectRoot;
+  if (!root) return;
+
+  const def = objects[grid[y][x].object];
+
+  for (let yy = root.y; yy < root.y + def.h; yy++) {
+    for (let xx = root.x; xx < root.x + def.w; xx++) {
+      grid[yy][xx].object = null;
+      grid[yy][xx].objectRoot = null;
+    }
+  }
+
+  const cell = getCell(root.x, root.y);
+  const img = cell.querySelector(".map-object");
+  if (img) img.remove();
+}
+
+/* =========================
+   WALL / DOOR LOGIC
 ========================= */
 function getEdgeFromMouse(cell, event) {
   const r = cell.getBoundingClientRect();
@@ -148,24 +325,17 @@ function getEdgeFromMouse(cell, event) {
   if (y > r.height - m) return "bottom";
   if (x < m) return "left";
   if (x > r.width - m) return "right";
-
   return null;
 }
 
 function toggleBarrier(x, y, edge, type) {
   const cell = grid[y][x];
-
   cell.walls[edge] = cell.walls[edge] === type ? "none" : type;
 
   const dx = edge === "left" ? -1 : edge === "right" ? 1 : 0;
   const dy = edge === "top" ? -1 : edge === "bottom" ? 1 : 0;
 
-  const opposite = {
-    left: "right",
-    right: "left",
-    top: "bottom",
-    bottom: "top"
-  }[edge];
+  const opposite = { left: "right", right: "left", top: "bottom", bottom: "top" }[edge];
 
   const nx = x + dx;
   const ny = y + dy;
@@ -180,21 +350,16 @@ function toggleBarrier(x, y, edge, type) {
 
 function renderWalls(x, y) {
   const cell = getCell(x, y);
-  if (!cell) return;
-
   cell.querySelectorAll(".wall, .door").forEach(e => e.remove());
 
   const walls = grid[y][x].walls;
-
   for (const side in walls) {
-    const type = walls[side];
-    if (type === "none") continue;
+    if (walls[side] === "none") continue;
 
     const el = document.createElement("div");
-    el.className = `${type} ${side} ${
+    el.className = `${walls[side]} ${side} ${
       side === "top" || side === "bottom" ? "horizontal" : "vertical"
     }`;
-
     cell.appendChild(el);
   }
 }
@@ -206,10 +371,12 @@ function getCell(x, y) {
   return board.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
 }
 
+/* =========================
+   BUTTONS
+========================= */
 wallBtn.onclick = () => {
   wallMode = !wallMode;
   doorMode = false;
-
   wallBtn.textContent = `🧱 Modo Parede: ${wallMode ? "ON" : "OFF"}`;
   doorBtn.textContent = "🚪 Modo Porta: OFF";
 };
@@ -217,7 +384,6 @@ wallBtn.onclick = () => {
 doorBtn.onclick = () => {
   doorMode = !doorMode;
   wallMode = false;
-
   doorBtn.textContent = `🚪 Modo Porta: ${doorMode ? "ON" : "OFF"}`;
   wallBtn.textContent = "🧱 Modo Parede: OFF";
 };
@@ -226,27 +392,43 @@ exportBtn.onclick = () => {
   const mapData = {
     boardSize: BOARD_SIZE,
     tileSize: TILE_SIZE,
-    grid: []
+    grid
   };
-
-  for (let y = 0; y < BOARD_SIZE; y++) {
-    const row = [];
-    for (let x = 0; x < BOARD_SIZE; x++) {
-      const cell = grid[y][x];
-
-      row.push({
-        tile: cell.tile,
-        color: cell.color || null,
-        img: cell.img || null,
-        walls: { ...cell.walls }
-      });
-    }
-    mapData.grid.push(row);
-  }
-
   downloadJSON(mapData, "rpg_map.json");
 };
 
+backBtn.onclick = () => {
+  window.location.href = "index.html";
+};
+
+/* =========================
+   OBJECT PALETTE
+========================= */
+document.querySelectorAll(".object-item").forEach(img => {
+  img.addEventListener("dragstart", () => selectObject(img));
+  img.addEventListener("click", () => selectObject(img));
+});
+
+function selectObject(img) {
+  selectedObject = img.dataset.object;
+  selectedTile = null;
+
+  document.querySelectorAll(".palette img")
+    .forEach(i => i.classList.remove("selected-palette"));
+
+  highlightSelectedObject(img);
+}
+
+function highlightSelectedObject(selectedImg) {
+  document.querySelectorAll(".object-item")
+    .forEach(i => i.classList.remove("selected-object"));
+
+  selectedImg.classList.add("selected-object");
+}
+
+/* =========================
+   EXPORT
+========================= */
 function downloadJSON(data, filename) {
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: "application/json" });
@@ -259,8 +441,3 @@ function downloadJSON(data, filename) {
 
   URL.revokeObjectURL(url);
 }
-
-document.getElementById("backBtn").addEventListener("click", () => {
-  window.location.href = "index.html";
-});
-

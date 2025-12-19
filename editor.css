@@ -188,3 +188,47 @@ h1 {
   box-shadow: 0 0 10px gold;
   border-radius: 6px;
 }
+
+#editorLayout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+#objectPanel {
+  width: 180px;
+  background: #2b2e3b;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+#objectPanel h3 {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.object-item {
+  width: 64px;
+  margin: 8px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.object-item:hover,
+.object-item.selected-object {
+  outline: 3px solid gold;
+}
+
+.map-object {
+  position: absolute;
+  width: 70%;
+  height: 70%;
+  top: 15%;
+  left: 15%;
+  pointer-events: none;
+}
+
+.map-object {
+  image-rendering: pixelated;
+  z-index: 5;
+}
