@@ -87,7 +87,6 @@ body {
   overflow-y: auto;
   font-family: Consolas, monospace;
   font-size: 14px;
-  color: #00eaff;
   box-shadow: 0 0 10px #000;
 }
 
@@ -106,6 +105,7 @@ body {
   border: 2px solid #333;
   padding: 12px;
   font-family: Arial, sans-serif;
+  position: relative;
 }
 
 #hud h2, #hud h3 {
@@ -139,4 +139,134 @@ body {
 .slot.filled {
   border-style: solid;
   background: #2a2a2a;
+}
+
+.entity.selected {
+  outline: 3px solid #00ff66;
+  outline-offset: -3px;
+}
+
+#actionPanel {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  width: 100%;
+  max-width: 700px; /* ajuste ao seu layout */
+}
+
+#consoleBox {
+  flex: 1;
+  height: 120px;
+  background: #111;
+  border: 2px solid #333;
+  padding: 6px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+#attackPanel {
+  width: 120px;
+  display: flex;
+  align-items: flex-end;
+}
+
+#attackBtn {
+  width: 100%;
+  padding: 10px;
+  font-weight: bold;
+  background: #7a1f1f;
+  color: white;
+  border: 2px solid #aa4444;
+  cursor: pointer;
+  display: none;
+}
+
+#attackBtn:hover {
+  background: #a52a2a;
+}
+
+#attackBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.log-hit {
+  color: #3cff6b;
+  font-weight: bold;
+}
+
+.log-miss {
+  color: #ff4d4d;
+  font-weight: bold;
+}
+
+#inventoryHud {
+  width: 120px;
+  color: white;
+}
+
+#inventoryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 48px);
+  grid-auto-rows: 48px;
+  gap: 6px;
+}
+
+.inventory-slot {
+  width: 48px;
+  height: 48px;
+  background: rgba(255,255,255,0.08);
+  border: 2px solid #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.inventory-slot.selected {
+  border-color: #3cff6b;
+}
+
+.inventory-slot img {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+#gameWrapper {
+  display: flex;
+  gap: 16px;
+}
+
+#inventoryFooter {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #444;
+  text-align: center;
+  font-weight: bold;
+}
+
+.potion-slot {
+  width: 48px;
+  height: 48px;
+  position: absolute;
+  cursor: pointer;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.potion-slot img {
+  width: 100%;
+  height: 100%;
+}
+
+#potionCount {
+  position: absolute;
+  bottom: -6px;
+  right: -6px;
+  background: #000;
+  color: #0f0;
+  font-size: 12px;
+  padding: 2px 5px;
+  border-radius: 10px;
 }

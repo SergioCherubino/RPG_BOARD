@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>RPG Map Editor</title>
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+
+<h1>RPG Dungeon Map Editor</h1>
+
+<!-- =========================
+     TOOLBAR
+========================= -->
+<div id="toolbar">
+
+  <!-- PALETTE -->
+  <div class="palette">
+
+    <!-- FLOOR NORMAL -->
+    <img
+      src="Assets/objects/tiles/tile1.png"
+      draggable="true"
+      class="palette-tile"
+      data-tile="floor"
+      data-color="normal"
+      title="Floor (Normal)"
+    />
+
+    <!-- FLOOR RED -->
+    <img
+      src="Assets/objects/tiles_red/tile1.png"
+      draggable="true"
+      class="palette-tile"
+      data-tile="floor"
+      data-color="red"
+      title="Floor (Red)"
+    />
+
+    <!-- FLOOR GREEN -->
+    <img
+      src="Assets/objects/tiles_green/tile1.png"
+      draggable="true"
+      class="palette-tile"
+      data-tile="floor"
+      data-color="green"
+      title="Floor (Green)"
+    />
+
+  </div>
+
+  <!-- WALL MODE -->
+  <button id="wallBtn">🧱 Modo Parede: OFF</button>
+  <button id="doorBtn">🚪 Modo Porta: OFF</button>
+
+</div>
+
+<!-- =========================
+     BOARD VIEWPORT
+========================= -->
+<div id="viewport">
+  <div id="board"></div>
+</div>
+
+<div class="bottom-buttons">
+  <button id="exportBtn">💾 Exportar JSON</button>
+  <button id="backBtn">⬅ Voltar</button>
+</div>
+
+<script src="editor.js"></script>
+</body>
+</html>

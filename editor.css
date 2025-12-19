@@ -1,0 +1,184 @@
+body {
+  background: #1d1f27;
+  color: white;
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 20px;
+}
+
+/* =========================
+   HEADER
+========================= */
+
+h1 {
+  margin-bottom: 10px;
+}
+
+/* =========================
+   TOOLBAR
+========================= */
+
+#toolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+
+/* PALETTE */
+
+.palette {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  background: #111;
+  border: 2px solid #333;
+  border-radius: 8px;
+}
+
+.palette img {
+  width: 48px;
+  height: 48px;
+  border: 2px solid #444;
+  cursor: grab;
+  background: #333;
+}
+
+.palette img:active {
+  cursor: grabbing;
+}
+
+/* =========================
+   WALL BUTTON
+========================= */
+
+#wallBtn,
+#doorBtn {
+  padding: 6px 14px;
+  cursor: pointer;
+  font-weight: bold;
+  background: #222;
+  color: white;
+  border: 2px solid #555;
+  border-radius: 6px;
+}
+
+#wallBtn:hover,
+#doorBtn:hover {
+  background: #333;
+}
+
+/* =========================
+   VIEWPORT
+========================= */
+
+#viewport {
+  width: 960px;
+  height: 720px;
+  overflow: auto;
+  border: 2px solid #444;
+  background: #313131;
+}
+
+/* =========================
+   BOARD
+========================= */
+
+#board {
+  display: grid;
+  grid-template-columns: repeat(100, 48px);
+  grid-template-rows: repeat(100, 48px);
+}
+
+/* =========================
+   CELLS
+========================= */
+
+.cell {
+  width: 48px;
+  height: 48px;
+  position: relative;
+  box-sizing: border-box;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+/* =========================
+   WALLS
+========================= */
+
+.wall {
+  position: absolute;
+  background: #000000;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* horizontal */
+
+.wall.horizontal {
+  height: 4px;
+  width: 100%;
+  left: 0;
+}
+
+/* vertical */
+
+.wall.vertical {
+  width: 4px;
+  height: 100%;
+  top: 0;
+}
+
+/* position */
+
+.wall.top { top: -2px; }
+.wall.bottom { bottom: -2px; }
+.wall.left { left: -2px; }
+.wall.right { right: -2px; }
+
+.door {
+  position: absolute;
+  background: #8b5a2b; /* madeira */
+  z-index: 11;
+  pointer-events: none;
+}
+
+.door.horizontal {
+  height: 6px;
+  width: 60%;
+  left: 20%;
+}
+
+.door.vertical {
+  width: 6px;
+  height: 60%;
+  top: 20%;
+}
+
+.door.top { top: -3px; }
+.door.bottom { bottom: -3px; }
+.door.left { left: -3px; }
+.door.right { right: -3px; }
+
+.bottom-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+#backBtn {
+  padding: 10px 18px;
+  font-size: 15px;
+  border: none;
+  border-radius: 8px;
+  background: #555;
+  color: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+#backBtn:hover {
+  background: #777;
+  transform: scale(1.03);
+}

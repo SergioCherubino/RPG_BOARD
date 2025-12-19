@@ -27,11 +27,33 @@
         <div class="slot" data-slot="armor">Armor</div>
         <div class="slot" data-slot="shield">Shield</div>
       </div>
+
+      <div id="potionSlot" class="slot potion-slot">
+        <img src="Assets/items/potion.jpg" />
+        <span id="potionCount">0</span>
+      </div>
+
     </div>
     <div id="board"></div>
+    <div id="inventoryHud">
+      <h3>Inventário</h3>
+      <div id="inventoryGrid"></div>
+      <div id="inventoryFooter">
+        💰 Gold: <span id="goldAmount">0</span>
+      </div>
+    </div>
   </div>
 
-  <div id="consoleBox"></div>
+  <div id="actionPanel">
+    <div id="consoleBox"></div>
+
+    <div id="attackPanel">
+      <button id="attackBtn">⚔️ Attack</button>
+      <button id="equipBtn" style="display:none;">Equip</button>
+      <button id="unequipBtn" style="display:none;">Desequipar</button>
+      <button id="drinkBtn" style="display:none;">Drink</button>
+    </div>
+  </div>
   <button id="endTurnBtn">End Turn</button>
 
   <script src="game.js"></script>

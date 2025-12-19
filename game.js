@@ -2,7 +2,7 @@ function logMessage(text) {
   const box = document.getElementById("consoleBox");
   const line = document.createElement("div");
   line.className = "console-line";
-  line.textContent = text;
+  line.innerHTML = text;
   box.appendChild(line);
   box.scrollTop = box.scrollHeight;
 }
@@ -13,6 +13,38 @@ const items = {
   shield:{ name: "Shield", armor: 1 }
 };
 
+const INVENTORY_SIZE = 20;
+const inventory = Array(INVENTORY_SIZE).fill(null);
+let selectedInventoryIndex = null;
+
+const equipped = {
+  weapon: null,
+  armor: null,
+  shield: null
+};
+
+let potionCount = 5;
+const MAX_POTIONS = 10;
+
+let heroGold = 0;
+let selectedTarget = null;
+
+const equipBtn = document.getElementById("equipBtn");
+const unequipBtn = document.getElementById("unequipBtn");
+const drinkBtn = document.getElementById("drinkBtn");
+
+function showEquipButton(item) {
+  equipBtn.style.display = "inline-block";
+  equipBtn.onclick = () => equipSelectedItem(item);
+}
+
+function hideEquipButton() {
+  equipBtn.style.display = "none";
+}
+
+function updateGoldUI() {
+  document.getElementById("goldAmount").textContent = heroGold;
+}
 
 // ============================
 // Player / Monster factories
@@ -28,6 +60,7 @@ function createPlayer(type){
   return {
     type, sprite:d.sprite,
     movementRange:d.movementRange,
+    maxHp: d.attributes.hp,
     hp:d.attributes.hp,
     armor:d.attributes.armor,
     damageMin:d.attributes.damageMin,
@@ -118,6 +151,34 @@ function getTableCellsRect(startX, startY, horizontal) {
 
 const TILE_SIZE = 48;
 
+function placeSingleObject(imagePath, type = "object") {
+  let placed = false;
+
+  while (!placed) {
+    const pos = getRandomFreeCell();
+
+    // marca grid como ocupado
+    grid[pos.y][pos.x] = { type, solid: true };
+
+    const cell = getCell(pos.x, pos.y);
+
+    const img = document.createElement("img");
+    img.src = imagePath;
+    img.className = "entity";
+
+    img.style.width = `${TILE_SIZE}px`;
+    img.style.height = `${TILE_SIZE}px`;
+    img.style.position = "absolute";
+    img.style.left = "0";
+    img.style.top = "0";
+    img.style.zIndex = 3;
+
+    cell.appendChild(img);
+
+    placed = true;
+  }
+}
+
 function placeTableObject() {
   let placed = false;
 
@@ -146,8 +207,8 @@ function placeTableObject() {
     img.src = "Assets/objects/table.png";
     img.className = "entity";
 
-    img.style.width  = `${TILE_SIZE * 2}px`;
-    img.style.height = `${TILE_SIZE * 3}px`;
+    img.style.width  = `${TILE_SIZE * 3}px`;
+    img.style.height = `${TILE_SIZE * 2}px`;
 
     img.style.position = "absolute";
     img.style.left = "0";
@@ -272,6 +333,7 @@ function startLevel(){
   updateHUD();
 
   placeTableObject(); // 🪑 OBJETO FIXO
+  placeSingleObject("Assets/objects/chest.png", "chest"); // 🧰 BAÚ
 
   const hp = getRandomFreeCell();
   placeEntity(hero, hp.x, hp.y);
@@ -281,6 +343,7 @@ function startLevel(){
 
   spawnMonsters();
   setTurn("player");
+  updateGoldUI();
 }
 
 function nextLevel(){
@@ -297,6 +360,7 @@ function setTurn(newTurn){
   turn = newTurn;
 
   if (turn === "player") {
+    clearSelection();
     hero.movementLeft = hero.movementRange;
     hero.canAttack = true;
 
@@ -325,7 +389,7 @@ function attack(attacker,target){
   if(d20>=target.armor){
     const dmg=rollDice(attacker.damageMax-attacker.damageMin+1)+attacker.damageMin-1;
     target.hp-=dmg;
-    logMessage(`→ HIT! ${dmg} damage`);
+    logMessage(`→ <span class="log-hit">HIT!</span> ${dmg} damage`);
 
     const c=getCell(target.x,target.y);
     if(c) c.querySelector(".hp-bubble").textContent=Math.max(0,target.hp);
@@ -333,6 +397,13 @@ function attack(attacker,target){
     if(target.hp<=0){
       logMessage(`${target.type} slain!`);
       clearCell(target.x,target.y);
+
+      // 💰 DROP DE GOLD (1–10)
+      const goldDrop = rollDice(10);
+      heroGold += goldDrop;
+      logMessage(`💰 ${goldDrop} gold coletado`);
+      updateGoldUI();
+
       const i=monsters.indexOf(target);
       if(i>-1) monsters.splice(i,1);
 
@@ -341,8 +412,9 @@ function attack(attacker,target){
         nextLevel();
       }
     }
-  } else logMessage("→ MISS!");
+  } else logMessage(`→ <span class="log-miss">MISS!</span>`,color = "#ff0000");
   updateHUD();
+  drinkBtn.style.display = "none";
 }
 
 // ============================
@@ -357,22 +429,13 @@ function onCellClicked(x,y){
   const e=grid[y][x];
 
   if (e && monsters.includes(e) && isAdjacent(hero.x, hero.y, x, y)) {
-    if (!hero.canAttack) {
-      alert("Você já atacou neste turno.");
-      return;
-    }
-
-    if (!confirm("Deseja atacar este monstro?")) return;
-
-    attack(hero, e);
-    hero.canAttack = false;
-    clearHighlights(); // opcional, mas recomendado
-    updateTurnInfo();
+    if (!hero.canAttack) return;
+    selectTarget(e);
     return;
   }
 
-
   if (!e && hero.movementLeft > 0 && isAdjacent(hero.x, hero.y, x, y)) {
+    clearSelection();
     clearCell(hero.x, hero.y);
     placeEntity(hero, x, y);
     hero.movementLeft--;
@@ -387,6 +450,19 @@ function onCellClicked(x,y){
     updateTurnInfo();
   }
 }
+
+const attackBtn = document.getElementById("attackBtn");
+
+attackBtn.addEventListener("click", () => {
+  if (!selectedTarget || !hero.canAttack) return;
+
+  attack(hero, selectedTarget);
+  hero.canAttack = false;
+
+  clearSelection();
+  clearHighlights();
+  updateTurnInfo();
+});
 
 // ============================
 // Monster AI
@@ -452,11 +528,12 @@ async function monsterTurn() {
       placeEntity(m, step.x, step.y);
 
       m.movementLeft--;
-      await delay(200);
+      await delay(800);
     }
 
     // ⚔️ 4. Ataque
     if (isAdjacent(m.x, m.y, hero.x, hero.y)) {
+      await delay(800);
       attack(m, hero);
       if (hero.hp <= 0) {
         alert("Game Over");
@@ -480,7 +557,7 @@ if (endTurnBtn) {
 
 function updateHUD() {
   document.getElementById("hudClass").textContent = hero.type;
-  document.getElementById("hudHP").textContent = hero.hp;
+  document.getElementById("hudHP").textContent = `${hero.hp} / ${hero.maxHp}`;
   document.getElementById("hudArmor").textContent = hero.armor;
   document.getElementById("hudDamage").textContent =
     `${hero.damageMin} - ${hero.damageMax}`;
@@ -502,14 +579,259 @@ function equipItem(slot, item) {
   updateHUD();
 }
 
+function clearSelection() {
+  if (selectedTarget) {
+    const cell = getCell(selectedTarget.x, selectedTarget.y);
+    const img = cell?.querySelector(".entity");
+    if (img) img.classList.remove("selected");
+  }
+  selectedTarget = null;
+  document.getElementById("attackBtn").style.display = "none";
+  hideUnequipButton();
+  drinkBtn.style.display = "none";
+}
+
+function selectTarget(monster) {
+  clearSelection();
+
+  selectedTarget = monster;
+
+  const cell = getCell(monster.x, monster.y);
+  const img = cell?.querySelector(".entity");
+  if (img) img.classList.add("selected");
+
+  document.getElementById("attackBtn").style.display = "inline-block";
+}
+
+function initInventory() {
+  const grid = document.getElementById("inventoryGrid");
+  grid.innerHTML = "";
+
+  for (let i = 0; i < INVENTORY_SIZE; i++) {
+    const slot = document.createElement("div");
+    slot.className = "inventory-slot";
+    slot.dataset.index = i;
+
+    slot.onclick = () => onInventorySlotClick(i);
+
+    grid.appendChild(slot);
+  }
+}
+
+function addItemToInventory(item) {
+  const index = inventory.findIndex(i => i === null);
+  if (index === -1) {
+    logMessage(`<span class="log-miss">Inventário cheio!</span>`);
+    return;
+  }
+
+  inventory[index] = item;
+  renderInventory();
+}
+
+function renderInventory() {
+  document.querySelectorAll(".inventory-slot").forEach((slot, i) => {
+    slot.classList.remove("selected");
+    slot.innerHTML = "";
+
+    const item = inventory[i];
+    if (!item) return;
+
+    const img = document.createElement("img");
+    img.src = `Assets/items/${item.icon}`;
+    slot.appendChild(img);
+  });
+}
+
+function onInventorySlotClick(index) {
+  const item = inventory[index];
+  if (!item) return;
+
+  clearInventorySelection();
+
+  selectedInventoryIndex = index;
+  document
+    .querySelector(`.inventory-slot[data-index="${index}"]`)
+    .classList.add("selected");
+
+  if (item.slot) {
+    showEquipButton(item);
+  }
+}
+
+function clearInventorySelection() {
+  document
+    .querySelectorAll(".inventory-slot")
+    .forEach(s => s.classList.remove("selected"));
+
+  selectedInventoryIndex = null;
+  hideEquipButton();
+  hideUnequipButton();
+  drinkBtn.style.display = "none";
+}
+
+function equipSelectedItem(item) {
+  const slot = item.slot; // weapon / armor / shield
+  const invIndex = selectedInventoryIndex;
+
+  // 🔁 Se já tiver algo equipado, devolve pro inventário
+  if (equipped[slot]) {
+    inventory[invIndex] = equipped[slot];
+    unequipItem(slot);
+  } else {
+    inventory[invIndex] = null;
+  }
+
+  equipped[slot] = item;
+  equipItem(slot, item); // ← você já tem essa função
+
+  renderInventory();
+  clearInventorySelection();
+
+  logMessage(`<span class="log-hit">${item.name}</span> equipado`);
+  hideUnequipButton();
+}
+
+function unequipItem(slot) {
+  const item = equipped[slot];
+  if (!item) return;
+
+  if (slot === "weapon") {
+    hero.damageMin -= item.damageMin;
+    hero.damageMax -= item.damageMax;
+  }
+  if (slot === "armor" || slot === "shield") {
+    hero.armor -= item.armor;
+  }
+
+  equipped[slot] = null;
+}
+
+function showUnequipButton(slot) {
+  unequipBtn.style.display = "inline-block";
+  unequipBtn.onclick = () => unequipToInventory(slot);
+}
+
+function hideUnequipButton() {
+  unequipBtn.style.display = "none";
+}
+
+function unequipToInventory(slot) {
+  const item = equipped[slot];
+  if (!item) return;
+
+  const index = inventory.findIndex(i => i === null);
+  if (index === -1) {
+    logMessage(`<span class="log-miss">Inventário cheio!</span>`);
+    return;
+  }
+
+  // remove bônus
+  unequipItem(slot);
+
+  // move item para inventário
+  inventory[index] = item;
+
+  // limpa slot visual
+  const slotDiv = document.querySelector(`.slot[data-slot="${slot}"]`);
+  if(slot == "weapon"){
+  slotDiv.textContent = "Weapon";
+  slotDiv.classList.remove("filled");
+  } else if(slot == "armor"){
+    slotDiv.textContent = "Armor";
+    slotDiv.classList.remove("filled");
+  } else if(slot == "shield"){
+    slotDiv.textContent = "Shield";
+    slotDiv.classList.remove("filled");
+  }
+  renderInventory();
+  updateHUD();
+  hideUnequipButton();
+
+  logMessage(`<span class="log-hit">${item.name}</span> desequipado`);
+}
+
+function updatePotionUI() {
+  document.getElementById("potionCount").textContent = potionCount;
+}
+
+function addPotion(amount = 1) {
+  potionCount = Math.min(MAX_POTIONS, potionCount + amount);
+  updatePotionUI();
+  logMessage(`🧪 +${amount} poção(ões)`);
+}
+
+function updateEntityHPBubble(entity) {
+  const cell = getCell(entity.x, entity.y);
+  if (!cell) return;
+
+  const bubble = cell.querySelector(".hp-bubble");
+  if (bubble) {
+    bubble.textContent = Math.max(0, entity.hp);
+  }
+}
 
 // ============================
 // Init
 // ============================
 createBoard();
 startLevel();
+initInventory();
+updateGoldUI();
+updatePotionUI();
 
 window._GAME={hero,monsters,grid};
 
+addItemToInventory({
+  name: "Iron Sword",
+  slot: "weapon",
+  damageMin: 2,
+  damageMax: 4,
+  icon: "iron_sword.jpg"
+});
 
+document.querySelectorAll(".slot").forEach(slotDiv => {
+  slotDiv.addEventListener("click", () => {
+    const slot = slotDiv.dataset.slot;
+    const item = equipped[slot];
+
+    if (!item) return;
+
+    showUnequipButton(slot);
+  });
+});
+
+document.getElementById("potionSlot").addEventListener("click", () => {
+  if (potionCount <= 0) return;
+
+  hideEquipButton();
+  hideUnequipButton();
+
+  drinkBtn.style.display = "inline-block";
+});
+
+drinkBtn.addEventListener("click", () => {
+  if (potionCount <= 0) return;
+
+  if (hero.hp >= hero.maxHp) {
+    logMessage("🧪 HP já está no máximo");
+    drinkBtn.style.display = "none";
+    return;
+  }
+
+  const heal = rollDice(10);
+  const before = hero.hp;
+
+  hero.hp = Math.min(hero.hp + heal, hero.maxHp);
+  const healed = hero.hp - before;
+
+  potionCount--;
+  updatePotionUI();
+  updateHUD();
+  updateEntityHPBubble(hero);
+
+  logMessage(`🧪 Bebeu poção e curou ${healed} HP`);
+
+  drinkBtn.style.display = "none";
+});
 
