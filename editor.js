@@ -66,13 +66,20 @@ for (let y = 0; y < BOARD_SIZE; y++) {
     });
 
     cell.addEventListener("click", e => {
-      if (!wallMode && !doorMode) return;
+
+      // MOBILE / CLICK MODE: colocar tile
+      if (!wallMode && !doorMode) {
+        if (!selectedTile) return;
+        setTile(x, y, selectedTile);
+        return;
+      }
+
+      // WALL / DOOR MODE
       const edge = getEdgeFromMouse(cell, e);
       if (!edge) return;
 
       if (wallMode) toggleBarrier(x, y, edge, "wall");
       if (doorMode) toggleBarrier(x, y, edge, "door");
-
     });
 
     board.appendChild(cell);
@@ -83,11 +90,29 @@ for (let y = 0; y < BOARD_SIZE; y++) {
    PALETTE
 ========================= */
 document.querySelectorAll(".palette img").forEach(img => {
+
+  // Drag (desktop)
   img.addEventListener("dragstart", () => {
     selectedTile = img.dataset.tile;
     selectedColor = img.dataset.color;
+    highlightSelectedPalette(img);
+  });
+
+  // Click / Touch (mobile)
+  img.addEventListener("click", () => {
+    selectedTile = img.dataset.tile;
+    selectedColor = img.dataset.color;
+    highlightSelectedPalette(img);
   });
 });
+
+function highlightSelectedPalette(selectedImg) {
+  document.querySelectorAll(".palette img").forEach(img => {
+    img.classList.remove("selected-palette");
+  });
+
+  selectedImg.classList.add("selected-palette");
+}
 
 /* =========================
    TILE LOGIC

@@ -182,3 +182,9 @@ h1 {
   background: #777;
   transform: scale(1.03);
 }
+
+.palette img.selected-palette {
+  outline: 3px solid gold;
+  box-shadow: 0 0 10px gold;
+  border-radius: 6px;
+}
