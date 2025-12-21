@@ -238,10 +238,10 @@ hero.movementLeft = hero.movementRange;
 hero.canAttack = true;
 
 const TILE_IMAGES = [
-  "Assets/objects/tiles/tile1.png",
-  "Assets/objects/tiles/tile2.png",
-  "Assets/objects/tiles/tile3.png",
-  "Assets/objects/tiles/tile4.png"
+  "Assets/objects/tiles/gray/tile1.png",
+  "Assets/objects/tiles/gray/tile2.png",
+  "Assets/objects/tiles/gray/tile3.png",
+  "Assets/objects/tiles/gray/tile4.png"
 ];
 
 // ============================
